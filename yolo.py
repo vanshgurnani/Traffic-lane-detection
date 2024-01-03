@@ -3,7 +3,7 @@ import numpy as np
 import csv
 
 # Load YOLO
-net = cv2.dnn.readNet("C:/Users/gurna/OneDrive/Desktop/project-100/yolov3.weights", "yolov3.cfg")
+net = cv2.dnn.readNet("yolov3.weights", "yolov3.cfg")
 classes = []
 
 with open("coco.names", "r") as f:
