@@ -1,6 +1,7 @@
 import cv2
 import numpy as np
 import csv
+import os
 
 # Load YOLO
 net = cv2.dnn.readNet("yolov3.weights", "yolov3.cfg")
@@ -11,90 +12,88 @@ with open("coco.names", "r") as f:
 
 layer_names = net.getUnconnectedOutLayersNames()
 
-# Read image
-img = cv2.imread("image.jpeg")
-height, width, _ = img.shape
+# Open video file
+video_path = "test3_video.mp4"
+cap = cv2.VideoCapture(video_path)
 
-# Preprocess image
-blob = cv2.dnn.blobFromImage(img, 0.00392, (416, 416), (0, 0, 0), True, crop=False)
-net.setInput(blob)
-outs = net.forward(layer_names)
+# Get video details
+fps = int(cap.get(cv2.CAP_PROP_FPS))
+width = int(cap.get(cv2.CAP_PROP_FRAME_WIDTH))
+height = int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
 
-# Get information about detected objects
-class_ids = []
-confidences = []
-boxes = []
+# Create output directory to save frames
+output_directory = "output_frames"
+os.makedirs(output_directory, exist_ok=True)
 
-for out in outs:
-    for detection in out:
-        scores = detection[5:]
-        class_id = np.argmax(scores)
-        confidence = scores[class_id]
-        if confidence > 0.5:
-            # Object detected
-            center_x = int(detection[0] * width)
-            center_y = int(detection[1] * height)
-            w = int(detection[2] * width)
-            h = int(detection[3] * height)
+while True:
+    ret, frame = cap.read()
 
-            x = int(center_x - w / 2)
-            y = int(center_y - h / 2)
+    if not ret:
+        break
 
-            class_ids.append(class_id)
-            confidences.append(float(confidence))
-            boxes.append([x, y, w, h])
+    # Preprocess the frame and perform object detection
+    blob = cv2.dnn.blobFromImage(frame, 0.00392, (416, 416), (0, 0, 0), True, crop=False)
+    net.setInput(blob)
+    outs = net.forward(layer_names)
 
-# Implementing Non-Maximum Suppression (NMS)
-if len(boxes) > 0:
-    indices = cv2.dnn.NMSBoxes(boxes, confidences, score_threshold=0.5, nms_threshold=0.4)
+    # Get information about detected objects
+    class_ids = []
+    confidences = []
+    boxes = []
 
-    if len(indices) > 0:
-        # Drawing green boxes around detected objects on the image (after NMS)
-        for i in indices.flatten():
-            x, y, w, h = boxes[i]
+    for out in outs:
+        for detection in out:
+            scores = detection[5:]
+            class_id = np.argmax(scores)
+            confidence = scores[class_id]
+            if confidence > 0.5:
+                # Object detected
+                center_x = int(detection[0] * width)
+                center_y = int(detection[1] * height)
+                w = int(detection[2] * width)
+                h = int(detection[3] * height)
 
-            # Draw a green rectangle
-            cv2.rectangle(img, (x, y), (x + w, y + h), (0, 255, 0), 2)  # Green color: (0, 255, 0), Thickness: 2
+                x = int(center_x - w / 2)
+                y = int(center_y - h / 2)
 
-        # Save the image with green boxes drawn around detected objects (after NMS)
-        cv2.imwrite("output_image_with_nms.jpg", img)
-        print("Image with green boxes around detected objects (after NMS) saved as 'output_image_with_nms.jpg'")
+                class_ids.append(class_id)
+                confidences.append(float(confidence))
+                boxes.append([x, y, w, h])
 
-        # Count the number of detected objects after NMS
-        num_objects_after_nms = len(indices)
-        print(f"Number of objects detected after applying NMS: {num_objects_after_nms}")
-        
-        
-        # Initialize CSV file for NMS results
-        csv_nms_results = "nms_results.csv"
+    # Implementing Non-Maximum Suppression (NMS)
+    if len(boxes) > 0:
+        indices = cv2.dnn.NMSBoxes(boxes, confidences, score_threshold=0.5, nms_threshold=0.4)
 
-        # Open CSV file in write mode and create a CSV writer object for NMS results
-        with open(csv_nms_results, mode='w', newline='') as file:
-            writer = csv.writer(file)
+        if len(indices) > 0:
+            # Draw the total count on the frame
+            font = cv2.FONT_HERSHEY_SIMPLEX
+            count_text = f"Total Vehicles: {len(indices)}"
+            cv2.putText(frame, count_text, (10, 30), font, 1, (0, 0, 255), 2, cv2.LINE_AA)
 
-            # Write header row for NMS results
-            writer.writerow(['Item Name', 'Class ID', 'Confidence', 'X', 'Y', 'Width', 'Height'])
-
-            # Drawing green boxes around detected objects on the image (after NMS)
             for i in indices.flatten():
                 x, y, w, h = boxes[i]
                 class_id = class_ids[i]
                 confidence = confidences[i]
                 item_name = classes[class_id]
 
-                # Write information of each selected bounding box to the CSV file
-                writer.writerow([item_name, class_id, confidence, x, y, w, h])
+                # Draw a rectangle around the detected vehicle
+                cv2.rectangle(frame, (x, y), (x + w, y + h), (0, 255, 0), 2)
 
-        print(f"Selected detected objects' information after NMS saved in '{csv_nms_results}'")
-        
-        
-    else:
-        print("No valid indices found after applying NMS.")
-else:
-    print("No boxes detected to apply NMS.")
-    
-    
-# Save the image with green boxes drawn around detected objects (after NMS)
-cv2.imwrite("output_image_with_nms.jpg", img)
+                # Display the class label above the detected vehicle
+                label_text = f"{item_name}: {confidence:.2f}"
+                cv2.putText(frame, label_text, (x, y - 10), font, 0.5, (255, 255, 255), 1, cv2.LINE_AA)
 
-print("Image with green boxes around detected objects (after NMS) saved as 'output_image_with_nms.jpg'")
+            # Save the frame as an image in the output directory
+            frame_filename = os.path.join(output_directory, f"frame_{cap.get(cv2.CAP_PROP_POS_FRAMES)}.jpg")
+            cv2.imwrite(frame_filename, frame)
+
+            # Display the frame
+            cv2.imshow("Output", frame)
+
+    # Break the loop if 'q' key is pressed
+    if cv2.waitKey(1) & 0xFF == ord('q'):
+        break
+
+# Release the VideoCapture when done
+cap.release()
+cv2.destroyAllWindows()
