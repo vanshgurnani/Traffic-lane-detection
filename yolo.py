@@ -13,7 +13,7 @@ with open("coco.names", "r") as f:
 layer_names = net.getUnconnectedOutLayersNames()
 
 # Open video file
-video_path = "test3_video.mp4"
+video_path = "test2_video.mp4"
 cap = cv2.VideoCapture(video_path)
 
 # Get video details
