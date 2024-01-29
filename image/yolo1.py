@@ -15,6 +15,30 @@ layer_names = net.getUnconnectedOutLayersNames()
 img = cv2.imread("image.jpeg")
 height, width, _ = img.shape
 
+# Display grids in blue color
+grid_color = (255, 0, 0)  # Blue color in OpenCV format (B, G, R)
+
+# Draw horizontal lines
+num_horizontal_lines = 10
+for i in range(1, num_horizontal_lines):
+    y = int((i / num_horizontal_lines) * height)
+    cv2.line(img, (0, y), (width, y), grid_color, 1)
+
+# Draw vertical lines
+num_vertical_lines = 10
+for i in range(1, num_vertical_lines):
+    x = int((i / num_vertical_lines) * width)
+    cv2.line(img, (x, 0), (x, height), grid_color, 1)
+
+# Save the image with grids
+cv2.imwrite("output_image_with_grids.jpg", img)
+print("Image with grids saved as 'output_image_with_grids.jpg'")
+
+# Display the image with grids
+cv2.imshow("Image with Grids", img)
+cv2.waitKey(0)
+cv2.destroyAllWindows()
+
 # Preprocess image
 blob = cv2.dnn.blobFromImage(img, 0.00392, (416, 416), (0, 0, 0), True, crop=False)
 net.setInput(blob)
@@ -57,14 +81,13 @@ if len(boxes) > 0:
             cv2.rectangle(img, (x, y), (x + w, y + h), (0, 255, 0), 2)  # Green color: (0, 255, 0), Thickness: 2
 
         # Save the image with green boxes drawn around detected objects (after NMS)
-        cv2.imwrite("output_image_with_nms.jpg", img)
-        print("Image with green boxes around detected objects (after NMS) saved as 'output_image_with_nms.jpg'")
+        cv2.imwrite("output_image_with_nms_and_grids.jpg", img)
+        print("Image with green boxes and grids saved as 'output_image_with_nms_and_grids.jpg'")
 
         # Count the number of detected objects after NMS
         num_objects_after_nms = len(indices)
         print(f"Number of objects detected after applying NMS: {num_objects_after_nms}")
-        
-        
+
         # Initialize CSV file for NMS results
         csv_nms_results = "nms_results.csv"
 
@@ -86,15 +109,13 @@ if len(boxes) > 0:
                 writer.writerow([item_name, class_id, confidence, x, y, w, h])
 
         print(f"Selected detected objects' information after NMS saved in '{csv_nms_results}'")
-        
-        
+
     else:
         print("No valid indices found after applying NMS.")
 else:
     print("No boxes detected to apply NMS.")
-    
-    
-# Save the image with green boxes drawn around detected objects (after NMS)
-cv2.imwrite("output_image_with_nms.jpg", img)
 
-print("Image with green boxes around detected objects (after NMS) saved as 'output_image_with_nms.jpg'")
+# Save the image with green boxes drawn around detected objects (after NMS)
+cv2.imwrite("output_image_with_nms_and_grids.jpg", img)
+
+print("Image with green boxes and grids around detected objects (after NMS) saved as 'output_image_with_nms_and_grids.jpg'")
