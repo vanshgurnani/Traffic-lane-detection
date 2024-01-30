@@ -16,15 +16,9 @@ layer_names = net.getUnconnectedOutLayersNames()
 # Open video capture
 cap = cv2.VideoCapture('image/testvideo3.mp4')  # Replace 'path_to_your_video.mp4' with the actual path to your video file
 
-# Create an output directory if it doesn't exist
-output_directory = 'image/output'
-os.makedirs(output_directory, exist_ok=True)
-
 # Decrease the size of the output video
 output_width = 640  # Set the desired width for the output video
 output_height = 480  # Set the desired height for the output video
-
-frame_count = 0
 
 # Define the area using coordinates
 area_coordinates = [(300, 200), (800, 700)]
@@ -148,21 +142,15 @@ while cap.isOpened():
             # Resize the frame
             resized_frame = cv2.resize(frame, (output_width, output_height))
 
-            # Save the frame with grids, yellow boundary, green boxes, and red area in the output directory
-            output_frame_path = os.path.join(output_directory, f"output_frame_{frame_count}.jpg")
-            cv2.imwrite(output_frame_path, resized_frame)
-            print(f"Frame {frame_count} saved as '{output_frame_path}'")
+            # Display the processed frame without saving
+            cv2.imshow('Processed Frame', resized_frame)
 
         else:
             print("No valid indices found inside the red area after applying NMS.")
     else:
         print("No boxes detected to apply NMS.")
 
-    frame_count += 1
-
-    # Display the processed frame
-    cv2.imshow('Processed Frame', resized_frame)
-
+    # Check for the 'q' key to exit
     if cv2.waitKey(1) & 0xFF == ord('q'):
         break
 
