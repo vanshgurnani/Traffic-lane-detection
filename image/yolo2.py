@@ -17,6 +17,8 @@ cap = cv2.VideoCapture('image/testvideo3.mp4')  # Replace with your video path
 output_width = 640  # Set desired width
 output_height = 480  # Set desired height
 
+density_threshold=70;
+
 # Define pixel coordinates for the trapezoidal area (right lane)
 area_coordinates_pixel = [(500, 240), (758, 240), (1200, 700), (200, 700)]  # Adjust as needed
 
@@ -112,9 +114,35 @@ while cap.isOpened():
                 # Draw a green rectangle
                 cv2.rectangle(frame, (x, y), (x + w, y + h), (0, 255, 0), 2)  # Green color: (0, 255, 0), Thickness: 2
 
-            # Draw count text on the frame
+            # Calculate the area of the red box using the formula for a convex quadrilateral
+            x1, y1 = area_coordinates_pixel[0]
+            x2, y2 = area_coordinates_pixel[1]
+            x3, y3 = area_coordinates_pixel[2]
+            x4, y4 = area_coordinates_pixel[3]
+
+            red_box_area = 0.0002645833 * (0.5 * abs(x1 * (y2 - y3) + x2 * (y3 - y1) + x3 * (y1 - y2) + x4 * (y2 - y1)))
+
+            # Calculate density percentage
+            density_percentage = (num_objects_after_nms / red_box_area) * 100
+            
+            if density_percentage >= density_threshold:
+                light_color = (0, 255, 0)  # Green
+                light_text = "Green Light"
+            else:
+                light_color = (0, 0, 255)  # Red
+                light_text = "Red Light"
+
+            # Draw the area and density text on the frame
             font = cv2.FONT_HERSHEY_SIMPLEX
-            count_text = f"Total Objects: {num_objects_after_nms}"
+            area_text = f"Red Box Area: {red_box_area:.2f} sq. unit"
+            density_text = f"Density: {density_percentage:.2f}%"
+            light_text = f"Traffic Light: {light_text}"
+            cv2.putText(frame, area_text, (10, 60), font, 0.7, (255, 255, 255), 2, cv2.LINE_AA)
+            cv2.putText(frame, density_text, (10, 90), font, 0.7, (255, 255, 255), 2, cv2.LINE_AA)
+            cv2.putText(frame, light_text, (10, 120), font, 0.7, light_color, 2, cv2.LINE_AA)
+
+            # Draw count text on the frame
+            count_text = f"Total Vehicle Count: {num_objects_after_nms}"
             cv2.putText(frame, count_text, (10, 30), font, 1, (0, 0, 255), 2, cv2.LINE_AA)
 
     # Resize the frame
