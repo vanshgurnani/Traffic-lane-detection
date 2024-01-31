@@ -1,8 +1,5 @@
 import cv2
 import numpy as np
-import csv
-import os
-import random
 
 # Load YOLO
 net = cv2.dnn.readNet("image/yolov3.weights", "image/yolov3.cfg")
@@ -14,14 +11,23 @@ with open("image/coco.names", "r") as f:
 layer_names = net.getUnconnectedOutLayersNames()
 
 # Open video capture
-cap = cv2.VideoCapture('image/testvideo3.mp4')  # Replace 'path_to_your_video.mp4' with the actual path to your video file
+cap = cv2.VideoCapture('image/testvideo3.mp4')  # Replace with your video path
 
 # Decrease the size of the output video
-output_width = 640  # Set the desired width for the output video
-output_height = 480  # Set the desired height for the output video
+output_width = 640  # Set desired width
+output_height = 480  # Set desired height
 
-# Define the area using coordinates
-area_coordinates = [(300, 200), (800, 700)]
+# Define pixel coordinates for the trapezoidal area (right lane)
+area_coordinates_pixel = [(500, 240), (758, 240), (1200, 700), (200, 700)]  # Adjust as needed
+
+# Function to handle mouse events (optional for interactive adjustments)
+def mouse_event(event, x, y, flags, param):
+    if event == cv2.EVENT_MOUSEMOVE:
+        print(f"Mouse Coordinates: ({x}, {y})")
+
+# Set the mouse event callback function (optional)
+cv2.namedWindow('Processed Frame')
+cv2.setMouseCallback('Processed Frame', mouse_event)
 
 while cap.isOpened():
     ret, frame = cap.read()
@@ -30,44 +36,25 @@ while cap.isOpened():
 
     height, width, _ = frame.shape
 
-    # Display grids in blue color
+    # Draw the trapezoidal red boundary on the frame
+    cv2.polylines(frame, [np.array(area_coordinates_pixel, dtype=np.int32)], isClosed=True, color=(0, 0, 255), thickness=2)
+
+    # Draw the grid
     grid_color = (255, 0, 0)  # Blue color in OpenCV format (B, G, R)
 
-    # Draw horizontal lines
-    num_horizontal_lines = 10
-    for i in range(1, num_horizontal_lines):
-        y = int((i / num_horizontal_lines) * height)
+    # Draw horizontal lines and display grid coordinates
+    for i in range(1, 10):
+        y = int((i / 10) * height)
         cv2.line(frame, (0, y), (width, y), grid_color, 1)
+        cv2.putText(frame, f"{i}", (10, y), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 255, 0), 1, cv2.LINE_AA)
 
-    # Draw vertical lines
-    num_vertical_lines = 10
-    for i in range(1, num_vertical_lines):
-        x = int((i / num_vertical_lines) * width)
+    # Draw vertical lines and display grid coordinates
+    for i in range(1, 10):
+        x = int((i / 10) * width)
         cv2.line(frame, (x, 0), (x, height), grid_color, 1)
+        cv2.putText(frame, f"{i}", (x, 20), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 255, 0), 1, cv2.LINE_AA)
 
-    # Generate points for the area using the specified coordinates
-    area_x, area_y = area_coordinates[0]
-    area_width = area_coordinates[1][0] - area_coordinates[0][0]
-    area_height = area_coordinates[1][1] - area_coordinates[0][1]
-
-    # Generate points along the boundary within the frame dimensions
-    boundary_points = []
-    for i in range(area_x, min(area_x + area_width, width)):
-        boundary_points.append((i, max(area_y, 0)))
-        boundary_points.append((i, min(area_y + area_height - 1, height - 1)))
-
-    for i in range(area_y, min(area_y + area_height, height)):
-        boundary_points.append((max(area_x, 0), i))
-        boundary_points.append((min(area_x + area_width - 1, width - 1), i))
-
-    # Shuffle the points to get a random boundary
-    random.shuffle(boundary_points)
-
-    # Draw the yellow boundary on the frame
-    for point in boundary_points:
-        frame[point[1], point[0]] = (0, 0, 255)  # Red color in OpenCV format (B, G, R)
-
-    # Preprocess frame
+    # Preprocess frame for object detection
     blob = cv2.dnn.blobFromImage(frame, 0.00392, (416, 416), (0, 0, 0), True, crop=False)
     net.setInput(blob)
     outs = net.forward(layer_names)
@@ -78,10 +65,8 @@ while cap.isOpened():
     boxes = []
 
     # Define the red area
-    red_area_x = area_x
-    red_area_y = area_y
-    red_area_width = area_width
-    red_area_height = area_height
+    red_area = np.array([area_coordinates_pixel], dtype=np.int32)
+    red_area = red_area.reshape((-1, 1, 2))
 
     # Initialize a list to store objects inside the red area
     objects_inside_red_area = []
@@ -105,19 +90,13 @@ while cap.isOpened():
                 confidences.append(float(confidence))
                 boxes.append([x, y, w, h])
 
-                # Check if the bounding box intersects with the red area
-                if (
-                    x >= red_area_x
-                    and y >= red_area_y
-                    and x + w <= red_area_x + red_area_width
-                    and y + h <= red_area_y + red_area_height
-                ):
+                # Check if bounding box intersects with the red area
+                if cv2.pointPolygonTest(red_area, (center_x, center_y), False) > 0:
                     # Object is inside the red area
                     objects_inside_red_area.append(len(boxes) - 1)
 
     # Implementing Non-Maximum Suppression (NMS)
     if len(boxes) > 0:
-        # Extract confidences and indices of the boxes
         confidences = np.array(confidences)
         indices = cv2.dnn.NMSBoxes(boxes, confidences, score_threshold=0.5, nms_threshold=0.4)
 
@@ -125,7 +104,6 @@ while cap.isOpened():
         if len(indices) > 0:
             indices = [i for i in indices.flatten() if i in objects_inside_red_area]
 
-            # Count the number of detected objects after NMS
             num_objects_after_nms = len(indices)
 
             # Drawing green boxes around detected objects on the frame
@@ -136,19 +114,14 @@ while cap.isOpened():
 
             # Draw count text on the frame
             font = cv2.FONT_HERSHEY_SIMPLEX
-            count_text = f"Total Vehicles: {num_objects_after_nms}"
+            count_text = f"Total Objects: {num_objects_after_nms}"
             cv2.putText(frame, count_text, (10, 30), font, 1, (0, 0, 255), 2, cv2.LINE_AA)
 
-            # Resize the frame
-            resized_frame = cv2.resize(frame, (output_width, output_height))
+    # Resize the frame
+    resized_frame = cv2.resize(frame, (output_width, output_height))
 
-            # Display the processed frame without saving
-            cv2.imshow('Processed Frame', resized_frame)
-
-        else:
-            print("No valid indices found inside the red area after applying NMS.")
-    else:
-        print("No boxes detected to apply NMS.")
+    # Display the processed frame without saving
+    cv2.imshow('Processed Frame', resized_frame)
 
     # Check for the 'q' key to exit
     if cv2.waitKey(1) & 0xFF == ord('q'):
