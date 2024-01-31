@@ -11,18 +11,36 @@ with open("image/coco.names", "r") as f:
 layer_names = net.getUnconnectedOutLayersNames()
 
 # Open video capture
-cap = cv2.VideoCapture('image/testvideo3.mp4')  # Replace with your video path
+cap = cv2.VideoCapture('image/test1.mp4')  # Replace with your video path
 
 # Decrease the size of the output video
 output_width = 640  # Set desired width
 output_height = 480  # Set desired height
 
-density_threshold=70;
+density_threshold = 70
 
 # Define pixel coordinates for the trapezoidal area (right lane)
 area_coordinates_pixel = [(500, 240), (758, 240), (1200, 700), (200, 700)]  # Adjust as needed
 
-# Function to handle mouse events (optional for interactive adjustments)
+# Function to adjust the trapezoidal area based on detected lanes
+def adjust_trapezoidal_area_based_on_lanes(frame, lines):
+    if lines is not None and len(lines) > 0:
+        # Find the average slope of detected lanes
+        slopes = [(line[0][3] - line[0][1]) / (line[0][2] - line[0][0] + 1e-10) for line in lines]
+        avg_slope = np.mean(slopes)
+
+        # Calculate new vertices for the trapezoidal area based on the average slope
+        trapezoidal_height = 200  # Adjust as needed
+        top_left = (width // 2 - int(trapezoidal_height / (2 * avg_slope)), 240)
+        top_right = (width // 2 + int(trapezoidal_height / (2 * avg_slope)), 240)
+        bottom_right = (width, height)
+        bottom_left = (0, height)
+
+        # Draw the adjusted trapezoidal red boundary on the frame
+        cv2.polylines(frame, [np.array([top_left, top_right, bottom_right, bottom_left], dtype=np.int32)],
+                      isClosed=True, color=(0, 0, 255), thickness=2)
+
+# Set up a callback function for mouse events (optional for interactive adjustments)
 def mouse_event(event, x, y, flags, param):
     if event == cv2.EVENT_MOUSEMOVE:
         print(f"Mouse Coordinates: ({x}, {y})")
@@ -38,24 +56,6 @@ while cap.isOpened():
 
     height, width, _ = frame.shape
 
-    # Draw the trapezoidal red boundary on the frame
-    cv2.polylines(frame, [np.array(area_coordinates_pixel, dtype=np.int32)], isClosed=True, color=(0, 0, 255), thickness=2)
-
-    # Draw the grid
-    grid_color = (255, 0, 0)  # Blue color in OpenCV format (B, G, R)
-
-    # Draw horizontal lines and display grid coordinates
-    for i in range(1, 10):
-        y = int((i / 10) * height)
-        cv2.line(frame, (0, y), (width, y), grid_color, 1)
-        cv2.putText(frame, f"{i}", (10, y), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 255, 0), 1, cv2.LINE_AA)
-
-    # Draw vertical lines and display grid coordinates
-    for i in range(1, 10):
-        x = int((i / 10) * width)
-        cv2.line(frame, (x, 0), (x, height), grid_color, 1)
-        cv2.putText(frame, f"{i}", (x, 20), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 255, 0), 1, cv2.LINE_AA)
-
     # Preprocess frame for object detection
     blob = cv2.dnn.blobFromImage(frame, 0.00392, (416, 416), (0, 0, 0), True, crop=False)
     net.setInput(blob)
@@ -69,7 +69,7 @@ while cap.isOpened():
     # Define the red area
     red_area = np.array([area_coordinates_pixel], dtype=np.int32)
     red_area = red_area.reshape((-1, 1, 2))
-
+    
     # Initialize a list to store objects inside the red area
     objects_inside_red_area = []
 
@@ -114,46 +114,24 @@ while cap.isOpened():
                 # Draw a green rectangle
                 cv2.rectangle(frame, (x, y), (x + w, y + h), (0, 255, 0), 2)  # Green color: (0, 255, 0), Thickness: 2
 
-            # Calculate the area of the red box using the formula for a convex quadrilateral
-            x1, y1 = area_coordinates_pixel[0]
-            x2, y2 = area_coordinates_pixel[1]
-            x3, y3 = area_coordinates_pixel[2]
-            x4, y4 = area_coordinates_pixel[3]
+            # Detect lanes and adjust parameters
+            gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
+            blurred = cv2.GaussianBlur(gray, (5, 5), 0)
+            edges = cv2.Canny(blurred, 50, 150)
+            lines = cv2.HoughLinesP(edges, 1, np.pi / 180, threshold=50, minLineLength=50, maxLineGap=100)
 
-            red_box_area = 0.0002645833 * (0.5 * abs(x1 * (y2 - y3) + x2 * (y3 - y1) + x3 * (y1 - y2) + x4 * (y2 - y1)))
+            # Adjust the trapezoidal area based on detected lanes
+            adjust_trapezoidal_area_based_on_lanes(frame, lines)
 
-            # Calculate density percentage
-            density_percentage = (num_objects_after_nms / red_box_area) * 100
-            
-            if density_percentage >= density_threshold:
-                light_color = (0, 255, 0)  # Green
-                light_text = "Green Light"
-            else:
-                light_color = (0, 0, 255)  # Red
-                light_text = "Red Light"
+            # Resize the frame
+            resized_frame = cv2.resize(frame, (output_width, output_height))
 
-            # Draw the area and density text on the frame
-            font = cv2.FONT_HERSHEY_SIMPLEX
-            area_text = f"Red Box Area: {red_box_area:.2f} sq. unit"
-            density_text = f"Density: {density_percentage:.2f}%"
-            light_text = f"Traffic Light: {light_text}"
-            cv2.putText(frame, area_text, (10, 60), font, 0.7, (255, 255, 255), 2, cv2.LINE_AA)
-            cv2.putText(frame, density_text, (10, 90), font, 0.7, (255, 255, 255), 2, cv2.LINE_AA)
-            cv2.putText(frame, light_text, (10, 120), font, 0.7, light_color, 2, cv2.LINE_AA)
+            # Display the processed frame without saving
+            cv2.imshow('Processed Frame', resized_frame)
 
-            # Draw count text on the frame
-            count_text = f"Total Vehicle Count: {num_objects_after_nms}"
-            cv2.putText(frame, count_text, (10, 30), font, 1, (0, 0, 255), 2, cv2.LINE_AA)
-
-    # Resize the frame
-    resized_frame = cv2.resize(frame, (output_width, output_height))
-
-    # Display the processed frame without saving
-    cv2.imshow('Processed Frame', resized_frame)
-
-    # Check for the 'q' key to exit
-    if cv2.waitKey(1) & 0xFF == ord('q'):
-        break
+            # Check for the 'q' key to exit
+            if cv2.waitKey(1) & 0xFF == ord('q'):
+                break
 
 # Release video capture and close all windows
 cap.release()
