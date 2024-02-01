@@ -11,13 +11,13 @@ with open("image/coco.names", "r") as f:
 layer_names = net.getUnconnectedOutLayersNames()
 
 # Open video capture
-cap = cv2.VideoCapture('image/testvideo3.mp4')  # Replace with your video path
+cap = cv2.VideoCapture('image/test3.mp4')  # Replace with your video path
 
 # Decrease the size of the output video
 output_width = 640  # Set desired width
 output_height = 480  # Set desired height
 
-density_threshold=70;
+density_threshold = 70;
 
 # Define pixel coordinates for the trapezoidal area (right lane)
 area_coordinates_pixel = [(500, 240), (758, 240), (1200, 700), (200, 700)]  # Adjust as needed
