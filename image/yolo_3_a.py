@@ -19,25 +19,9 @@ output_height = 480  # Set desired height
 
 density_threshold = 70
 
-# Calculate the center of the frame
-width = int(cap.get(3))  # Get the width of the video frame
-height = int(cap.get(4))  # Get the height of the video frame
-center_x = width // 2
-center_y = height // 2
-
-# Define the height of the trapezoidal region as a fraction of the frame height
-trap_height_fraction = 0.4  # Adjust as needed to make it steeper
-
-# Calculate the y-coordinate for the top vertices based on the center
-top_y = int(center_y - (height * trap_height_fraction) / 2)
-
-# Define pixel coordinates for the trapezoidal area (centered)
-area_coordinates_pixel = [
-    (center_x - width // 4, height),   # Bottom-left
-    (center_x + width // 4, height),   # Bottom-right
-    (center_x + width // 8, top_y),    # Top-right
-    (center_x - width // 8, top_y)     # Top-left
-]
+# Define trapezium coordinates as a percentage of the frame dimensions
+trapezium_top_width_percentage = 40  # Adjust as needed
+trapezium_height_percentage = 80  # Adjust as needed
 
 # Function to handle mouse events (optional for interactive adjustments)
 def mouse_event(event, x, y, flags, param):
@@ -52,6 +36,19 @@ while cap.isOpened():
     ret, frame = cap.read()
     if not ret:
         break
+
+    height, width, _ = frame.shape
+
+    # Calculate trapezium coordinates dynamically based on the frame dimensions
+    trapezium_top_width = (trapezium_top_width_percentage / 100) * width
+    trapezium_height = (trapezium_height_percentage / 100) * height
+
+    area_coordinates_pixel = [
+        (int((width - trapezium_top_width) / 2), 0),
+        (int((width + trapezium_top_width) / 2), 0),
+        (width, int(trapezium_height)),
+        (0, int(trapezium_height))
+    ]
 
     # Draw the trapezoidal red boundary on the frame
     cv2.polylines(frame, [np.array(area_coordinates_pixel, dtype=np.int32)], isClosed=True, color=(0, 0, 255), thickness=2)
@@ -159,6 +156,13 @@ while cap.isOpened():
             # Draw count text on the frame
             count_text = f"Total Vehicle Count: {num_objects_after_nms}"
             cv2.putText(frame, count_text, (10, 30), font, 1, (0, 0, 255), 2, cv2.LINE_AA)
+
+    # Road detection using color-based segmentation (example using yellow color for roads)
+    hsv = cv2.cvtColor(frame, cv2.COLOR_BGR2HSV)
+    lower_yellow = np.array([20, 100, 100])
+    upper_yellow = np.array([30, 255, 255])
+    mask = cv2.inRange(hsv, lower_yellow, upper_yellow)
+    road_detected = cv2.bitwise_and(frame, frame, mask=mask)
 
     # Resize the frame
     resized_frame = cv2.resize(frame, (output_width, output_height))

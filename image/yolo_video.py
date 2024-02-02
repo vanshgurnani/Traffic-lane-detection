@@ -2,16 +2,16 @@ import cv2
 import numpy as np
 
 # Load YOLO
-net = cv2.dnn.readNet("image/yolov3.weights", "image/yolov3.cfg")
+net = cv2.dnn.readNet("yolov3.weights", "yolov3.cfg")
 classes = []
 
-with open("image/coco.names", "r") as f:
+with open("coco.names", "r") as f:
     classes = [line.strip() for line in f.readlines()]
 
 layer_names = net.getUnconnectedOutLayersNames()
 
 # Open video capture
-cap = cv2.VideoCapture('image/test3.mp4')  # Replace with your video path
+cap = cv2.VideoCapture('testvideo3.mp4')  # Replace with your video path
 
 # Decrease the size of the output video
 output_width = 640  # Set desired width
@@ -121,7 +121,7 @@ while cap.isOpened():
             x3, y3 = area_coordinates_pixel[2]
             x4, y4 = area_coordinates_pixel[3]
 
-            red_box_area = 0.0002645833 * (0.5 * abs(x1 * (y2 - y3) + x2 * (y3 - y1) + x3 * (y1 - y2) + x4 * (y2 - y1)))
+            red_box_area = ((0.0002645833)**2)  * (0.5 * abs(x1 * (y2 - y3) + x2 * (y3 - y1) + x3 * (y1 - y2) + x4 * (y2 - y1)))
 
             # Calculate density percentage
             density_percentage = (num_objects_after_nms / red_box_area) * 100

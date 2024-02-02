@@ -4,16 +4,16 @@ import csv
 import random
 
 # Load YOLO
-net = cv2.dnn.readNet("image/yolov3.weights", "image/yolov3.cfg")
+net = cv2.dnn.readNet("yolov3.weights", "yolov3.cfg")
 classes = []
 
-with open("image/coco.names", "r") as f:
+with open("coco.names", "r") as f:
     classes = [line.strip() for line in f.readlines()]
 
 layer_names = net.getUnconnectedOutLayersNames()
 
 # Read image
-img = cv2.imread("image/image.jpeg")
+img = cv2.imread("image.jpeg")
 height, width, _ = img.shape
 
 # Display grids in blue color
