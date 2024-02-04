@@ -2,16 +2,16 @@ import cv2
 import numpy as np
 
 # Load YOLO
-net = cv2.dnn.readNet("yolov3.weights", "yolov3.cfg")
+net = cv2.dnn.readNet("image/yolov3.weights", "image/yolov3.cfg")
 classes = []
 
-with open("coco.names", "r") as f:
+with open("image/coco.names", "r") as f:
     classes = [line.strip() for line in f.readlines()]
 
 layer_names = net.getUnconnectedOutLayersNames()
 
 # Open video capture
-cap = cv2.VideoCapture('testvideo3.mp4')  # Replace with your video path
+cap = cv2.VideoCapture('image/testvideo3.mp4')  # Replace with your video path
 
 # Decrease the size of the output video
 output_width = 640  # Set desired width
@@ -20,7 +20,7 @@ output_height = 480  # Set desired height
 density_threshold = 70;
 
 # Define pixel coordinates for the trapezoidal area (right lane)
-area_coordinates_pixel = [(500, 240), (758, 240), (1200, 700), (200, 700)]  # Adjust as needed
+area_coordinates_pixel = [(500, 300), (758, 300), (1200, 700), (200, 700)]  # Adjust as needed
 
 
 # Function to handle mouse events (optional for interactive adjustments)
@@ -32,6 +32,33 @@ def mouse_event(event, x, y, flags, param):
 cv2.namedWindow('Processed Frame')
 cv2.setMouseCallback('Processed Frame', mouse_event)
 
+def detect_lane_lines(frame):
+    # Convert the frame to grayscale
+    gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
+
+    # Apply GaussianBlur to reduce noise and improve edge detection
+    blurred = cv2.GaussianBlur(gray, (5, 5), 0)
+
+    # Apply Canny edge detection
+    edges = cv2.Canny(blurred, 50, 150)
+
+    # Set the region of interest (ROI) for lane detection
+    roi_vertices = np.array([[(200, 700), (1200, 700), (800, 400), (500, 400)]], dtype=np.int32)
+    roi_mask = np.zeros_like(edges)
+    cv2.fillPoly(roi_mask, roi_vertices, 255)
+    masked_edges = cv2.bitwise_and(edges, roi_mask)
+
+    # Apply Hough transform to detect lines
+    lines = cv2.HoughLinesP(masked_edges, 1, np.pi / 180, 50, minLineLength=50, maxLineGap=100)
+
+    # Get the first two points of the left and right lanes
+    if lines is not None and len(lines) >= 2:
+        left_lane = lines[0][0][:2]
+        right_lane = lines[1][0][:2]
+        return left_lane, right_lane
+    else:
+        return None, None
+
 while cap.isOpened():
     ret, frame = cap.read()
     if not ret:
@@ -39,8 +66,16 @@ while cap.isOpened():
 
     height, width, _ = frame.shape
 
+    # Dynamically detect lane lines and set the first two coordinates of the trapezoidal area
+    left_lane, right_lane = detect_lane_lines(frame)
+
+    if left_lane is not None and right_lane is not None:
+        area_coordinates_pixel[0] = (left_lane[0], left_lane[1])
+        area_coordinates_pixel[1] = (right_lane[0], right_lane[1])
+
     # Draw the trapezoidal red boundary on the frame
     cv2.polylines(frame, [np.array(area_coordinates_pixel, dtype=np.int32)], isClosed=True, color=(0, 0, 255), thickness=2)
+
 
     # Draw the grid
     grid_color = (255, 0, 0)  # Blue color in OpenCV format (B, G, R)
@@ -121,7 +156,7 @@ while cap.isOpened():
             x3, y3 = area_coordinates_pixel[2]
             x4, y4 = area_coordinates_pixel[3]
 
-            red_box_area = ((0.0002645833)**2)  * (0.5 * abs(x1 * (y2 - y3) + x2 * (y3 - y1) + x3 * (y1 - y2) + x4 * (y2 - y1)))
+            red_box_area = (0.0002645833)  * (0.5 * abs(x1 * (y2 - y3) + x2 * (y3 - y1) + x3 * (y1 - y2) + x4 * (y2 - y1)))
 
             # Calculate density percentage
             density_percentage = (num_objects_after_nms / red_box_area) * 100

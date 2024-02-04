@@ -2,16 +2,16 @@ import cv2
 import numpy as np
 
 # Load YOLO
-net = cv2.dnn.readNet("yolov3.weights", "yolov3.cfg")
+net = cv2.dnn.readNet("image/yolov3.weights", "image/yolov3.cfg")
 classes = []
 
-with open("coco.names", "r") as f:
+with open("image/coco.names", "r") as f:
     classes = [line.strip() for line in f.readlines()]
 
 layer_names = net.getUnconnectedOutLayersNames()
 
 # Open video capture
-cap = cv2.VideoCapture('test3.mp4')  # Replace with your video path
+cap = cv2.VideoCapture('image/testvideo3.mp4')  # Replace with your video path
 
 # Decrease the size of the output video
 output_width = 640  # Set desired width
@@ -20,8 +20,8 @@ output_height = 480  # Set desired height
 density_threshold = 70
 
 # Define trapezium coordinates as a percentage of the frame dimensions
-trapezium_top_width_percentage = 40  # Adjust as needed
-trapezium_height_percentage = 80  # Adjust as needed
+trapezium_top_width_percentage = 30  # Adjust as needed
+trapezium_height_percentage = 90  # Adjust as needed
 
 # Function to handle mouse events (optional for interactive adjustments)
 def mouse_event(event, x, y, flags, param):

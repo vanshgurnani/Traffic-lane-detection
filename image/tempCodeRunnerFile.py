@@ -1,1 +1,1 @@
-deeplabv3_257_mv_gpu.pb
+area_coordinates_pixel[1] = (right_lane[1][0], right_lane[1][1])
