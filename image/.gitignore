@@ -1,4 +1,0 @@
-# Ignore YOLOv3 weights files
-yolov3.weights
-*.weights
-testvideo3.mp4
