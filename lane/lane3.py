@@ -41,16 +41,13 @@ def road_lines_image(frame):
     lane_image = cv2.resize(lane_drawn, (1280, 720)).astype(np.uint8)
     result = cv2.addWeighted(actual_image, 1, lane_image, 1, 0)
 
-    # Find contours of the green shaded area
-    contours, _ = cv2.findContours(lanes.avg_fit.astype(np.uint8), cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
-
-    # Calculate the bounding box around the green shaded area
-    if contours:
-        x, y, w, h = cv2.boundingRect(contours[0])
-        trapezium_pts = np.array([[x, y], [x + w, y], [x + w, y + h], [x, y + h]], dtype=np.int32)
-        cv2.polylines(result, [trapezium_pts], isClosed=True, color=(255, 0, 0), thickness=2)
+    # Draw trapezium over the detected lane (green area)
+    trapezium_pts = np.array([[500, 400], [780, 400], [1280, 720], [0, 720]], dtype=np.int32)
+    cv2.polylines(result, [trapezium_pts], isClosed=True, color=(255, 0, 0), thickness=2)
 
     return result
+
+
 
 # Process video using cv2.VideoCapture and display frames with cv2.imshow
 def process_video(input_path):
@@ -80,7 +77,7 @@ def process_video(input_path):
     cv2.destroyAllWindows()
 
 # Specify input video file
-input_video_path = 'testvideo3.mp4'
+input_video_path = 'road2.mp4'
 
 # Process and display the video
 process_video(input_video_path)

@@ -1,83 +1,54 @@
 import cv2
 import numpy as np
-from keras.models import model_from_json
 
-# Define the Lanes class
-class Lanes():
-    def __init__(self):
-        self.recent_fit = []
-        self.avg_fit = []
+cap = cv2.VideoCapture("road3.mp4")
 
-# Load the pretrained model
-json_file = open('model.json', 'r')
-json_model = json_file.read()
-json_file.close()
+# Set the desired output video width and height
+output_width, output_height = 640, 360
 
-model = model_from_json(json_model)
-model.load_weights('model.h5')
+while True:
+    ret, frame = cap.read()
+    
+    if not ret:
+        break
 
-# Create a Lanes object
-lanes = Lanes()
+    # Apply GaussianBlur to the frame
+    blurred_frame = cv2.GaussianBlur(frame, (5, 5), 0)
 
-# Define the road_lines_image function
-def road_lines_image(frame):
-    actual_image = cv2.resize(frame, (1280, 720)).astype(np.uint8)
+    # Convert the frame to grayscale
+    gray_frame = cv2.cvtColor(blurred_frame, cv2.COLOR_BGR2GRAY)
 
-    small_img_2 = cv2.resize(frame, (160, 80))
-    small_img_1 = np.array(small_img_2)
-    small_img = small_img_1[None, :, :, :]
+    # Apply Canny edge detection
+    edges = cv2.Canny(gray_frame, 50, 150)
 
-    prediction = model.predict(small_img)[0] * 255
+    # Define region of interest (ROI) for lane detection
+    height, width = frame.shape[:2]
+    trapezium_vertices = np.array([[(100, height), (width // 2 - 50, height // 2 + 50),
+                                    (width // 2 + 50, height // 2 + 50), (width - 100, height)]], dtype=np.int32)
+    roi_mask = np.zeros_like(edges)
+    cv2.fillPoly(roi_mask, [trapezium_vertices], 255)
+    roi_edges = cv2.bitwise_and(edges, roi_mask)
 
-    lanes.recent_fit.append(prediction)
-    if len(lanes.recent_fit) > 5:
-        lanes.recent_fit = lanes.recent_fit[1:]
+    # Apply Hough line transformation
+    lines = cv2.HoughLinesP(roi_edges, 1, np.pi / 180, threshold=50, minLineLength=100, maxLineGap=50)
 
-    lanes.avg_fit = np.mean(np.array([i for i in lanes.recent_fit]), axis=0)
+    # Draw a trapezium around the detected lane area
+    cv2.polylines(frame, [trapezium_vertices], isClosed=True, color=(0, 255, 0), thickness=2)
 
-    blanks = np.zeros_like(lanes.avg_fit).astype(np.uint8)
-    lane_drawn = np.dstack((blanks, lanes.avg_fit, blanks))
+    if lines is not None:
+        for line in lines:
+            x1, y1, x2, y2 = line[0]
+            cv2.line(frame, (x1, y1), (x2, y2), (0, 0, 255), 2)
 
-    lane_image = cv2.resize(lane_drawn, (1280, 720)).astype(np.uint8)
-    result = cv2.addWeighted(actual_image, 1, lane_image, 1, 0)
+    # Resize the frame before displaying
+    resized_frame = cv2.resize(frame, (output_width, output_height))
 
-    # Draw trapezium over the detected lane (green area)
-    trapezium_pts = np.array([[500, 400], [780, 400], [1280, 720], [0, 720]], dtype=np.int32)
-    cv2.polylines(result, [trapezium_pts], isClosed=True, color=(255, 0, 0), thickness=2)
+    # Display the processed frame
+    cv2.imshow("Lane Detection", resized_frame)
 
-    return result
+    # Break the loop when 'q' is pressed
+    if cv2.waitKey(30) & 0xFF == ord("q"):
+        break
 
-
-
-# Process video using cv2.VideoCapture and display frames with cv2.imshow
-def process_video(input_path):
-    cap = cv2.VideoCapture(input_path)
-    fourcc = cv2.VideoWriter_fourcc(*'XVID')
-    out = cv2.VideoWriter('output_video_cv2.avi', fourcc, 20.0, (640, 360))  # Reduced size
-
-    while cap.isOpened():
-        ret, frame = cap.read()
-
-        if not ret:
-            break
-
-        processed_frame = road_lines_image(frame)
-        out.write(processed_frame)
-
-        # Resize for display
-        display_frame = cv2.resize(processed_frame, (640, 360))
-        cv2.imshow('Processed Frame', display_frame)
-
-        # Press 'q' to exit the video
-        if cv2.waitKey(1) & 0xFF == ord('q'):
-            break
-
-    cap.release()
-    out.release()
-    cv2.destroyAllWindows()
-
-# Specify input video file
-input_video_path = 'testvideo3.mp4'
-
-# Process and display the video
-process_video(input_video_path)
+cap.release()
+cv2.destroyAllWindows()
