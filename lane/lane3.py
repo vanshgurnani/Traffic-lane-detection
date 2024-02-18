@@ -77,7 +77,7 @@ def process_video(input_path):
     cv2.destroyAllWindows()
 
 # Specify input video file
-input_video_path = 'road2.mp4'
+input_video_path = 'video.mp4'
 
 # Process and display the video
 process_video(input_video_path)

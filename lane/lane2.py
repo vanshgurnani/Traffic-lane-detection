@@ -1,7 +1,7 @@
 import cv2
 import numpy as np
 
-cap = cv2.VideoCapture("road2.mp4")
+cap = cv2.VideoCapture("video.mp4")
 
 # Set the desired output video width and height
 output_width, output_height = 640, 360
