@@ -11,7 +11,7 @@ with open("coco.names", "r") as f:
 layer_names = net.getUnconnectedOutLayersNames()
 
 # Open video capture
-cap = cv2.VideoCapture('test2_video.mp4')  # Replace with your video path
+cap = cv2.VideoCapture('video.mp4')  # Replace with your video path
 
 # Decrease the size of the output video
 output_width = 640  # Set desired width
@@ -40,6 +40,8 @@ while cap.isOpened():
     gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
     edges = cv2.Canny(gray, 50, 150)
     lines = cv2.HoughLinesP(edges, 1, np.pi / 180, threshold=100, minLineLength=100, maxLineGap=10)
+    
+    total_lane_area = 0
 
     if lines is not None:
         for line in lines:
@@ -63,6 +65,11 @@ while cap.isOpened():
         for detection in out:
             scores = detection[5:]
             class_id = np.argmax(scores)
+            
+            # Remove detection for person class (assuming it has class_id 0, modify if necessary)
+            if classes[class_id] == "person":
+                continue
+            
             confidence = scores[class_id]
             if confidence > 0.5:
                 # Object detected
@@ -113,7 +120,7 @@ while cap.isOpened():
         font = cv2.FONT_HERSHEY_SIMPLEX
         density_text = f"Density: {density_percentage:.2f}%"
         light_text = f"Traffic Light: {light_text}"
-        cv2.putText(frame, density_text, (10, 60), font, 0.7, (255, 255, 255), 2, cv2.LINE_AA)
+        cv2.putText(frame, density_text, (10, 60), font, 0.7, (0, 0, 255), 2, cv2.LINE_AA)
         cv2.putText(frame, light_text, (10, 90), font, 0.7, light_color, 2, cv2.LINE_AA)
 
         # Draw count text on the frame
@@ -123,7 +130,7 @@ while cap.isOpened():
     # Draw bounding boxes for detected objects
     for box in detected_objects:
         x, y, w, h = box
-        cv2.rectangle(frame, (x, y), (x + w, y + h), (255, 0, 0), 2)  # Blue color: (255, 0, 0)
+        cv2.rectangle(frame, (x, y), (x + w, y + h), (0, 0, 255), 2)  # Blue color: (255, 0, 0)
 
     # Resize the frame
     resized_frame = cv2.resize(frame, (output_width, output_height))
