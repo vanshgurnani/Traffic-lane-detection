@@ -11,13 +11,13 @@ with open("coco.names", "r") as f:
 layer_names = net.getUnconnectedOutLayersNames()
 
 # Open video capture
-cap = cv2.VideoCapture('video.mp4')  # Replace with your video path
+cap = cv2.VideoCapture('test201.mp4')  # Replace with your video path
 
 # Decrease the size of the output video
 output_width = 640  # Set desired width
 output_height = 480  # Set desired height
 
-density_threshold = 70
+density_threshold = 40
 
 # Frame skipping configuration
 skip_frames = 5  # Adjust as needed
@@ -36,17 +36,16 @@ while cap.isOpened():
     if frame_count % skip_frames != 0:
         continue  # Skip frames
 
-    # Lane detection using Canny edge detection and Hough line transformation
-    gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
-    edges = cv2.Canny(gray, 50, 150)
-    lines = cv2.HoughLinesP(edges, 1, np.pi / 180, threshold=100, minLineLength=100, maxLineGap=10)
-    
-    total_lane_area = 0
-
-    if lines is not None:
-        for line in lines:
-            x1, y1, x2, y2 = line[0]
-            # cv2.line(frame, (x1, y1), (x2, y2), (0, 0, 255), 2)
+    # Draw trapezium shape on the frame
+    trapezium_top_width = 300
+    trapezium_bottom_width = 500
+    trapezium_height = 200
+    trapezium_top_left = (output_width // 2 - trapezium_top_width // 2, output_height - trapezium_height)
+    trapezium_top_right = (output_width // 2 + trapezium_top_width // 2, output_height - trapezium_height)
+    trapezium_bottom_left = (output_width // 2 - trapezium_bottom_width // 2, output_height)
+    trapezium_bottom_right = (output_width // 2 + trapezium_bottom_width // 2, output_height)
+    trapezium_points = np.array([trapezium_top_left, trapezium_top_right, trapezium_bottom_right, trapezium_bottom_left], np.int32)
+    cv2.polylines(frame, [trapezium_points], isClosed=True, color=(0, 0, 255), thickness=2)
 
     # Preprocess frame for object detection
     blob = cv2.dnn.blobFromImage(frame, 0.00392, (416, 416), (0, 0, 0), True, crop=False)
@@ -96,14 +95,17 @@ while cap.isOpened():
         
         total_area_covered=0
 
-        # Show green boxes for all detected objects within the detected lane
+        # Show green boxes for all detected objects within the trapezium
         for i in indices.flatten():
             x, y, w, h = boxes[i]
             total_area_covered += w * h
 
-            # Check if the object is within the detected lane
-            if any(cv2.pointPolygonTest(np.array([(x1, y1), (x2, y2)]), (x + w / 2, y + h / 2), False) > 0 for line in lines):
+            # Check if the object is within the trapezium
+            if cv2.pointPolygonTest(trapezium_points, (x + w / 2, y + h / 2), False) > 0:
                 cv2.rectangle(frame, (x, y), (x + w, y + h), (0, 255, 0), 2)
+
+                # If the object is inside the trapezium, you can add it to a list of detected objects
+                detected_objects.append((x, y, w, h))
 
         # Calculate density percentage
         total_frame_area = frame.shape[1] * frame.shape[0]
